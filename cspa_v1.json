@@ -1,0 +1,1187 @@
+// v1.5 - Launch date: February 21, 2025
+// Notes: Inclusion of the Summary (slide 2)
+
+// MAIN FUNCTION
+function runReport() {
+  const targetDate = '20/02/25'; // <-- 2) CHANGE DATE HERE BEFORE RUNNING THE SCRIPT (DD/MM/YY)
+  Logger.log(`Starting report for target date: ${targetDate}`);
+  processIncidents(targetDate);
+}
+
+// CONSTANTS
+const PRESENTATION_ID = "SLIDES_ID"; // <-- 1) CHECK IF THE PRESENTATION ID MATCHES THE CURRENT CS PULSE TEMPLATE
+const SPREADSHEET_ID = "SHEETS_ID";
+const SHEET_NAME = "General";
+const VALID_IMPACTS = ["Critical", "High", "Medium", "Low"];
+const GEMINI_API_KEY = 'GEMINI_API_KEY';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
+
+// COLUMN NAMES
+const COLUMN_NAMES = {
+  DATE: "Start Date & Time (UTC - 24h)",
+  DESCRIPTION: "Issue Description",
+  IMPACT: "Impact on CS",
+  MARKET: "Market",
+  START_LOCAL: "Start Date & Time (LOCAL - 24h)",
+  END_LOCAL: "End Date & Time (LOCAL - 24h)",
+  LINKS: "Links",
+  SUBJECT: "Subject",
+  STATUS: "Status",
+  TOP_NOTIFICATION: "Action taken",
+};
+
+// MARKETS
+const MARKETS = {
+  // Europe
+  BELGIUM_CASINO: "BE",
+  BELGIUM_SBK: "BK",
+  BULGARIA: "BG",
+  CZECH_REPUBLIC: "CZ",
+  GERMANY: "DE",
+  DENMARK: "DK",
+  PORTUGAL: "PT",
+  ROMANIA: "RO",
+  UNITED_KINGDOM: "UK",
+  // North America
+  ONTARIO: "ON",
+  // South America
+  BUENOS_AIRES_CITY: "BC",
+  BUENOS_AIRES_PROVINCE: "BP",
+  BRAZIL: "BR",
+  CHILE: "CL",
+  COLOMBIA: "CO",
+  ECUADOR: "EC",
+  MEXICO: "MX",
+  PERU: "PE",
+  //Africa
+  NIGERIA: "NG",
+};
+
+// TIME ZONES
+const MARKET_TIMEZONES = {
+  "BC": "America/Argentina/Buenos_Aires",
+  "BP": "America/Argentina/Buenos_Aires",
+  "BR": "America/Sao_Paulo",
+  "BG": "Europe/Sofia",
+  "CL": "America/Santiago",
+  "CO": "America/Bogota",
+  "EC": "America/Guayaquil",
+  "MX": "America/Mexico_City",
+  "PE": "America/Lima",
+  "CZ": "Europe/Prague",
+  "DE": "Europe/Berlin",
+  "DK": "Europe/Copenhagen",
+  "PT": "Europe/Lisbon",
+  "RO": "Europe/Bucharest",
+  "ON": "America/Toronto",
+  "NG": "Africa/Lagos",
+  "BE": "Europe/Brussels",
+  "BK": "Europe/Brussels"
+};
+
+// TABLE STYLING
+const TABLE_STYLE = {
+  COLUMN_WIDTHS: [200, 50, 350],
+  TOTAL_WIDTH: 650,
+  TOTAL_HEIGHT: 350,
+  FONT_SIZES: {
+    HEADER: 10,
+    CONTENT: 10,
+    IMPACT: 10
+  }
+};
+
+const MARKET_IMAGES = {
+  "BC": "10MFOsaKOb2T0OeEyTWAB-4fBYF3y_cex",
+  "BP": "1wZF7SVhbaHKd8UtH5XV1Ns9lWqRhjT1z",
+  "BR": "1vMSpcq4tCSeqS_2DrNec57XfUt29duF4",
+  "BG": "1T5HEh8XnmLU2krYQzsLP4PGhwjpLOeyK",
+  "CL": "1JKbvqDwcI71jcJPXfkzjuQOg-xHcAhoF",
+  "CO": "1HOoOnabAtr2iskXFwxSdsf_Y8W90OYTC",
+  "EC": "13XH_NtV3R_nKNJ7yrxrKuIL32UqtsF5Y",
+  "MX": "1Kdn1h5l4h7VaT3hG9pBS37PEiNWoFVjZ",
+  "PE": "1A_cb_qqAsqwlwXgGzm4eMLf6PBjgjhRY",
+  "CZ": "1X6FIlc0uwnTW8GmdtnxfIXvoJjbn7pih",
+  "DE": "1YsayfRax893_IA20bDkfJcPu0Ma8k0U9",
+  "DK": "1xXwpqo6g63fuXYtpnH-TfgVquhXNxUVJ",
+  "PT": "1b1fyqr1fbN_v6UYabtn_e9Ib39Yz82DN",
+  "RO": "1X3JCz7leeTdeNQk_mC4oKy2dqs8HAkSC",
+  "ON": "1seljzcAh65bmk3DSsAdVjkLF_5M8rgKc",
+  "NG": "1TpGT8MQJDUfWil6GpsZeMGc8Uyk1PJGX",
+  "BE": "1Rw8Jv1WlCCG5WKWkXoY-gSeZg2ANAI9J",
+  "BK": "13lo2G0mMBTJTcGsG6ETLysnOJIGcpU8E",
+  "UK": "1O-Xeqhvs1q4G1hp1C289aVSMnBEkuk-Z"
+};
+
+//FUNCTION INDEX
+// 1. getImageUrl_
+// 2. testGeminiAPI
+// 3. callGeminiAPI_
+// 4. processIncidents
+// 5. getSheet_
+// 6. openSpreadsheet_
+// 7. openPresentation_
+// 8. generateTitleWithGemini_
+// 9. getIncidentsForDate_
+// 10. calculateDuration_
+// 11. updateSlides_
+// 12. createFrontCover_
+// 13. createBackCover_
+// 14. formatDate_
+// 15. learExistingSlides_
+// 16. createInitialSlides_
+// 17. populateSummaryTables_
+// 18. createSummarySlide_
+// 19. createMarketTitle_
+// 20. createMarketSlide_
+// 21. adjustTableColumnWidths_
+// 22. prepareTableData_
+// 23. populateTableData_
+
+//FUNCTIONS
+
+// 1
+function getImageUrl_(fileId) {
+  try {
+    const file = DriveApp.getFileById(fileId);
+    
+    return `https://drive.google.com/uc?export=view&id=${fileId}`;
+    }catch (error) {
+      ogger.log(`Error accessing image with ID ${fileId}: ${error.toString()}`);
+      return null;
+  }
+}
+
+// 2
+function getMarketDateRange_(market, targetDate) {
+  try {
+    // Check if market is empty or undefined
+    if (!market) {
+      Logger.log(`Warning: Empty or undefined market code received`);
+      return null;
+    }
+
+    const timezone = MARKET_TIMEZONES[market];
+    if (!timezone) {
+      Logger.log(`Warning: No timezone configured for market: "${market}"`);
+      return null;
+    }
+
+    // Parse target date (assuming format DD/MM/YY)
+    const [day, month, year] = targetDate.split('/');
+    const fullYear = 2000 + parseInt(year);
+    
+    // Create start and end dates in market's timezone
+    const startDate = new Date(Date.UTC(fullYear, month - 1, parseInt(day), 0, 0, 0));
+    const endDate = new Date(Date.UTC(fullYear, month - 1, parseInt(day), 23, 59, 59));
+
+    // Format dates in market's timezone
+    const options = {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    };
+
+    const marketRange = {
+      start: startDate.toLocaleString("en-US", options),
+      end: endDate.toLocaleString("en-US", options)
+    };
+
+    Logger.log(`Successfully calculated time range for market ${market}: ${marketRange.start} to ${marketRange.end}`);
+    return marketRange;
+
+  } catch (error) {
+    Logger.log(`Error getting date range for market "${market}": ${error.toString()}`);
+    return null;
+  }
+}
+
+//
+function isDateInRange_(dateToCheck, startDate, endDate) {
+  try {
+    const checkDate = new Date(dateToCheck);
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    return checkDate >= start && checkDate <= end;
+  } catch (error) {
+    Logger.log(`Error comparing dates: ${error.toString()}`);
+    return false;
+  }
+}
+
+// 3
+function callGeminiAPI_(prompt) {
+  try {
+    const requestBody = {
+      contents: [{
+        parts: [{
+          text: prompt
+        }]
+      }],
+      generationConfig: {
+        temperature: 0.7,    // Slightly more creative
+        maxOutputTokens: 1024, // Increased token limit
+        topP: 0.8,
+        topK: 40,
+        stopSequences: ["---"]  // Clear ending marker
+      }
+    };
+
+    const options = {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': GEMINI_API_KEY
+      },
+      payload: JSON.stringify(requestBody),
+      muteHttpExceptions: true
+    };
+
+    const response = UrlFetchApp.fetch(GEMINI_API_URL, options);
+    const responseData = JSON.parse(response.getContentText());
+    
+    if (responseData.candidates && responseData.candidates[0] &&
+        responseData.candidates[0].content && responseData.candidates[0].content.parts) {
+      return responseData.candidates[0].content.parts[0].text.trim();
+    }
+    
+    return "Unable to generate analysis.";
+
+  } catch (error) {
+    Logger.log(`Error in callGeminiAPI_: ${error.toString()}`);
+    return "Error generating analysis.";
+  }
+}
+
+// 4
+function processIncidents(targetDate) {
+  try {
+    Logger.log(`Starting report generation for date: ${targetDate}`);
+
+    const spreadsheet = openSpreadsheet_();
+    const sheet = getSheet_(spreadsheet);
+    const presentation = openPresentation_();
+    
+    const incidents = getIncidentsForDate_(sheet, targetDate);
+    
+    Logger.log("Incidents found:", JSON.stringify(incidents, null, 2));
+    Logger.log("Number of markets with incidents:", Object.keys(incidents).length);
+    
+    let totalIncidents = 0;
+    Object.values(incidents).forEach(marketIncidents => {
+      Object.values(marketIncidents).forEach(impactIncidents => {
+        totalIncidents += impactIncidents.length;
+      });
+    });
+    Logger.log("Total number of incidents:", totalIncidents);
+
+    updateSlides_(presentation, incidents, targetDate);
+    
+    Logger.log("Report generation completed successfully!");
+  } catch (error) {
+    const errorMessage = `Error generating report: ${error.toString()}`;
+    Logger.log(errorMessage);
+    throw error;
+  }
+}
+
+// 5
+function getSheet_(spreadsheet) {
+  const sheet = spreadsheet.getSheetByName(SHEET_NAME);
+  if (!sheet) {
+    throw new Error(`Sheet '${SHEET_NAME}' not found`);
+  }
+  return sheet;
+}
+
+// 6
+function openSpreadsheet_() {
+  try {
+    return SpreadsheetApp.openById(SPREADSHEET_ID);
+  } catch (e) {
+    throw new Error(`Failed to open spreadsheet: ${e.message}`);
+  }
+}
+
+// 7
+function openPresentation_() {
+  try {
+    return SlidesApp.openById(PRESENTATION_ID);
+  } catch (e) {
+    throw new Error(`Failed to open presentation: ${e.message}`);
+  }
+}
+
+// 8
+function generateTitleWithGemini_(description) {
+  try {
+    if (!description || typeof description !== 'string') {
+      Logger.log('Invalid description received:', description);
+      return 'Untitled Incident';
+    }
+
+    const cleanDescription = description
+      .replace(/\n/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    Logger.log(`Cleaned description: ${cleanDescription.substring(0, 100)}...`);
+
+    const prompt = `Task: Create a clear, concise title for an incident report.
+      Description: "${cleanDescription}"
+      Requirements:
+        - Must be professional and clear
+        - Maximum 5 words
+        - Focus on the main issue
+        - Return only the title, no other text
+        Title:`;
+    
+    Logger.log('Sending prompt to Gemini API...');
+    const generatedTitle = callGeminiAPI_(prompt);
+    
+    if (!generatedTitle || generatedTitle.trim() === '') {
+      Logger.log('Gemini API returned empty or null response, using fallback');
+      return description.split(' ').slice(0, 4).join(' ') + '...';
+    }
+
+    Logger.log(`Successfully generated title: "${generatedTitle}"`);
+    return generatedTitle;
+
+  } catch (error) {
+    Logger.log(`Error in generateTitleWithGemini_: ${error.toString()}`);
+    return description.split(' ').slice(0, 4).join(' ') + '...';
+  }
+}
+
+// 9
+function getIncidentsForDate_(sheet, targetDate) {
+  const dataRange = sheet.getDataRange();
+  const data = dataRange.getDisplayValues();
+  const headers = data[0];
+
+  // Get column indices
+  const columnIndices = {
+    date: headers.indexOf(COLUMN_NAMES.DATE),
+    description: headers.indexOf(COLUMN_NAMES.DESCRIPTION),
+    market: headers.indexOf(COLUMN_NAMES.MARKET),
+    impact: headers.indexOf(COLUMN_NAMES.IMPACT),
+    startLocal: headers.indexOf(COLUMN_NAMES.START_LOCAL),
+    endLocal: headers.indexOf(COLUMN_NAMES.END_LOCAL),
+    links: headers.indexOf(COLUMN_NAMES.LINKS),
+    subject: headers.indexOf(COLUMN_NAMES.SUBJECT),
+    actionTaken: headers.indexOf("Action taken")
+  };
+
+  Logger.log("Column indices found:", columnIndices);
+
+  // Initialize incidents object
+  const incidents = {};
+  Object.values(MARKETS).forEach(market => {
+    incidents[market] = {
+      Critical: [],
+      High: [],
+      Medium: [],
+      Low: []
+    };
+  });
+
+  // Initialize summary stats
+  const summaryStats = {
+    totalIncidents: 0,
+    affectedMarkets: new Set(),
+    topNotifications: 0,
+    solved: 0,
+    ongoing: 0,
+    impacts: {
+      Critical: 0,
+      High: 0,
+      Medium: 0,
+      Low: 0
+    },
+    subjects: {
+      Payments: 0,
+      Traders: 0,
+      Technical: 0,
+      "Casino Providers": 0,
+      "CRM/Promos": 0,
+      KYC: 0,
+      Others: 0
+    }
+  };
+
+  const reportedMarkets = new Set();  // To track which markets we've already reported
+
+  // Process each row
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const market = row[columnIndices.market].toString().trim();
+    
+    // Skip if no market or no timezone for market
+    const timezone = MARKET_TIMEZONES[market];
+    if (!timezone) {
+      if (market && !reportedMarkets.has(market)) {
+        Logger.log(`Warning: No timezone configured for market: "${market}"`);
+        reportedMarkets.add(market);
+      }
+      continue;
+    }
+
+    // Get the incident's local start time
+    const incidentLocalTime = row[columnIndices.startLocal];
+    if (!incidentLocalTime) continue;
+
+    try {
+      // Parse the incident's local date
+      const [incidentDate] = incidentLocalTime.split(',');
+      const [incidentDay, incidentMonth, incidentYear] = incidentDate.split('/');
+      
+      // Parse target date
+      const [targetDay, targetMonth, targetYear] = targetDate.split('/');
+
+      // Compare dates in local time
+      if (incidentDay === targetDay &&
+          incidentMonth === targetMonth &&
+          incidentYear === targetYear) {
+        
+        const impact = row[columnIndices.impact].toString().trim();
+        const subject = row[columnIndices.subject]?.toString().trim() || 'Others';
+        const actionTaken = row[columnIndices.actionTaken]?.toString().trim();
+
+        // Get links with their URLs
+        let linksData = '';
+        if (columnIndices.links >= 0) {
+          try {
+            const richText = sheet.getRange(i + 1, columnIndices.links + 1).getRichTextValue();
+            if (richText) {
+              const runs = richText.getRuns();
+              const links = runs.map(run => ({
+                text: run.getText(),
+                url: run.getLinkUrl() || null
+              })).filter(link => link.url);
+              
+              // Remove any existing commas and join with a single comma and space
+              linksData = links.map(link => link.text.trim().replace(/,\s*/g, '')).join(', ');
+            }
+          } catch (error) {
+            Logger.log(`Error processing links in row ${i}: ${error}`);
+            linksData = row[columnIndices.links]?.toString() || '';
+          }
+        }
+
+        if (market && incidents.hasOwnProperty(market) && VALID_IMPACTS.includes(impact)) {
+          // Update summary stats
+          summaryStats.totalIncidents++;
+          summaryStats.affectedMarkets.add(market);
+          summaryStats.impacts[impact]++;
+          
+          if (actionTaken === "Notification") {
+            Logger.log(`Found Top Notification in row ${i}`);
+            summaryStats.topNotifications++;
+          }
+
+          if (subject in summaryStats.subjects) {
+            summaryStats.subjects[subject]++;
+          } else {
+            summaryStats.subjects.Others++;
+          }
+
+          if (row[columnIndices.endLocal]) {
+            summaryStats.solved++;
+          } else {
+            summaryStats.ongoing++;
+          }
+
+          const incident = {
+            title: generateTitleWithGemini_(row[columnIndices.description]),
+            description: row[columnIndices.description],
+            startLocal: row[columnIndices.startLocal],
+            endLocal: row[columnIndices.endLocal],
+            links: linksData,
+            subject: subject,
+            actionTaken: actionTaken,
+            hasTopNotification: actionTaken === "Notification"
+          };
+
+          incidents[market][impact].push(incident);
+          Logger.log(`Added incident for ${market} with ${impact} impact in local time range`);
+        }
+      }
+    } catch (error) {
+      Logger.log(`Error processing row ${i}: ${error}`);
+    }
+  }
+
+  Logger.log(`Total incidents found: ${summaryStats.totalIncidents}`);
+  Logger.log(`Top Notifications count: ${summaryStats.topNotifications}`);
+
+  return {
+    incidents: incidents,
+    summary: {
+      ...summaryStats,
+      affectedMarkets: summaryStats.affectedMarkets.size
+    }
+  };
+}
+
+// 10
+function calculateDuration_(startTime, endTime) {
+  try {
+    Logger.log(`Calculating duration between: "${startTime}" and "${endTime}"`);
+
+    const [startDate, startHourMin] = startTime.split(', ');
+    const [endDate, endHourMin] = endTime.split(', ');
+
+    const [startDay, startMonth, startYear] = startDate.split('/');
+    const [endDay, endMonth, endYear] = endDate.split('/');
+
+    const [startHour, startMinute] = startHourMin.split(':');
+    const [endHour, endMinute] = endHourMin.split(':');
+
+    const start = new Date(
+      2000 + parseInt(startYear),
+      parseInt(startMonth) - 1,
+      parseInt(startDay),
+      parseInt(startHour),
+      parseInt(startMinute)
+    );
+
+    const end = new Date(
+      2000 + parseInt(endYear),
+      parseInt(endMonth) - 1,
+      parseInt(endDay),
+      parseInt(endHour),
+      parseInt(endMinute)
+    );
+
+    const diff = end - start;
+    
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    
+    const duration = `${hours.toString().padStart(2, '0')}h${minutes.toString().padStart(2, '0')}m`;
+    
+    Logger.log(`Calculated duration: ${duration}`);
+    return duration;
+  } catch (error) {
+    Logger.log(`Error calculating duration: ${error.toString()}`);
+    Logger.log(`Start time: ${startTime}`);
+    Logger.log(`End time: ${endTime}`);
+    return "00h00m";
+  }
+}
+
+// 11
+function updateSlides_(presentation, incidentsData, targetDate) {
+  Logger.log("Starting slides update...");
+  
+  clearExistingSlides_(presentation);
+  
+  const master = presentation.getMasters()[0];
+  const layouts = master.getLayouts();
+
+  // Create front cover
+  createFrontCover_(presentation, master.getLayouts()[0], targetDate);
+
+  // Create statistical summary slide
+  createSummarySlide_(presentation, incidentsData.summary, layouts[2]);
+
+  // Create market-specific slides
+  const marketsWithIncidents = Object.entries(incidentsData.incidents)
+    .filter(([market, impactGroups]) => {
+      let totalIncidents = 0;
+      Object.values(impactGroups).forEach(impactList => {
+        totalIncidents += impactList.length;
+      });
+      return totalIncidents > 0;
+    });
+
+  marketsWithIncidents.forEach(([market, impactGroups]) => {
+    const slide = presentation.appendSlide(layouts[2]);
+    createMarketSlide_(slide, market, impactGroups, presentation);
+  });
+
+  // Create back cover
+  createBackCover_(presentation, master.getLayouts()[1]);
+}
+
+// 12
+function createFrontCover_(presentation, layout, targetDate) {
+  const slide = presentation.appendSlide(layout);
+  const titleBox = slide.insertTextBox(
+    "Daily CS Pulse",
+    50,
+    50,
+    400,
+    100
+  );
+
+  titleBox.getText().getTextStyle()
+    .setFontSize(45)
+    .setFontFamily('Proxima Nova')
+    .setBold(true)
+    .setForegroundColor('#FFFFFF');
+
+  const dateStr = formatDate_(targetDate);
+  const dateBox = slide.insertTextBox(
+    dateStr,
+    50,
+    presentation.getPageHeight() - 80,
+    200,
+    50
+  );
+
+  dateBox.getText().getTextStyle()
+    .setFontSize(11)
+    .setFontFamily('Proxima Nova')
+    .setForegroundColor('#FFFFFF');
+  
+  Logger.log("Created front cover");
+}
+
+// 13
+function createBackCover_(presentation, layout) {
+  const slide = presentation.appendSlide(layout);
+  Logger.log("Created back cover");
+}
+
+// 14
+function formatDate_(dateStr) {
+  const [day, month, year] = dateStr.split('/');
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  
+  const fullYear = '20' + year;
+  
+  return `${months[parseInt(month) - 1]} ${parseInt(day)}, ${fullYear}`;
+}
+
+//15
+function clearExistingSlides_(presentation) {
+  while (presentation.getSlides().length > 0) {
+    presentation.getSlides()[0].remove();
+  }
+}
+
+//16
+function createSummarySlide_(presentation, summaryStats, layout) {
+  const slide = presentation.appendSlide(layout);
+  
+  // Get slide dimensions
+  const slideWidth = presentation.getPageWidth();
+  const slideHeight = presentation.getPageHeight();
+
+  // Define margins
+  const margins = {
+    left: 50,
+    right: 50,
+    top: 70,
+    bottom: 50
+  };
+
+  // Calculate available space
+  const availableWidth = slideWidth - margins.left - margins.right;
+  const availableHeight = slideHeight - margins.top - margins.bottom;
+
+  // Define table dimensions
+  const tableSpacing = 30; // Space between tables
+  const leftTableWidth = (availableWidth - tableSpacing) * 0.45; // 45% of available width
+  const rightTableWidth = (availableWidth - tableSpacing) * 0.45; // 45% of available width
+
+  // Add "Summary" title
+  const title = slide.insertTextBox(
+    "Summary",
+    margins.left,
+    20,
+    200,
+    50
+  );
+  
+  title.getText().getTextStyle()
+    .setFontSize(20)
+    .setFontFamily('Proxima Nova')
+    .setBold(true)
+    .setForegroundColor('#000000');
+
+  // Create main summary table (top left)
+  const mainSummaryTable = slide.insertTable(
+    5, 2,
+    margins.left,
+    margins.top,
+    leftTableWidth,
+    150
+  );
+
+  // Create impact table (bottom left)
+  const impactTable = slide.insertTable(
+    5, 2,
+    margins.left,
+    margins.top + 170, // Position below main summary table
+    leftTableWidth,
+    150
+  );
+
+  // Create subjects table (right)
+  const subjectsTable = slide.insertTable(
+    8, 2,
+    margins.left + leftTableWidth + tableSpacing,
+    margins.top,
+    rightTableWidth,
+    340
+  );
+
+  // Prepare data with safe values
+  const safeStats = {
+    totalIncidents: summaryStats?.totalIncidents || 0,
+    affectedMarkets: summaryStats?.affectedMarkets || 0,
+    topNotifications: summaryStats?.topNotifications || 0,
+    solved: summaryStats?.solved || 0,
+    ongoing: summaryStats?.ongoing || 0,
+    impacts: {
+      Low: summaryStats?.impacts?.Low || 0,
+      Medium: summaryStats?.impacts?.Medium || 0,
+      High: summaryStats?.impacts?.High || 0,
+      Critical: summaryStats?.impacts?.Critical || 0
+    },
+    subjects: {
+      Payments: summaryStats?.subjects?.Payments || 0,
+      Traders: summaryStats?.subjects?.Traders || 0,
+      Technical: summaryStats?.subjects?.Technical || 0,
+      "Casino Providers": summaryStats?.subjects?.["Casino Providers"] || 0,
+      "CRM/Promos": summaryStats?.subjects?.["CRM/Promos"] || 0,
+      KYC: summaryStats?.subjects?.KYC || 0,
+      Others: summaryStats?.subjects?.Others || 0
+    }
+  };
+
+  // Prepare data
+  const mainSummaryData = [
+    ["Impactful incidents", safeStats.totalIncidents],
+    ["Affected markets", safeStats.affectedMarkets],
+    ["Top Notifications", safeStats.topNotifications],
+    ["Solved", safeStats.solved],
+    ["Ongoing", safeStats.ongoing]
+  ];
+
+  const impactData = [
+    ["Impact on CS", "Total"],
+    ["Low", safeStats.impacts.Low],
+    ["Medium", safeStats.impacts.Medium],
+    ["High", safeStats.impacts.High],
+    ["Critical", safeStats.impacts.Critical]
+  ];
+
+  const subjectsData = [
+    ["Incidents per Subject", ""],
+    ["Payments", safeStats.subjects.Payments],
+    ["Traders", safeStats.subjects.Traders],
+    ["Technical", safeStats.subjects.Technical],
+    ["Casino Providers", safeStats.subjects["Casino Providers"]],
+    ["CRM/Promos", safeStats.subjects["CRM/Promos"]],
+    ["KYC", safeStats.subjects.KYC],
+    ["Others", safeStats.subjects.Others]
+  ];
+
+  // Style and populate tables
+  populateSummaryTables_(mainSummaryTable, impactTable, subjectsTable,
+                        mainSummaryData, impactData, subjectsData);
+
+  return slide;
+}
+
+//17
+function populateSummaryTables_(mainTable, impactTable, subjectsTable, mainData, impactData, subjectsData) {
+  // Helper function to style and populate a table
+  function styleTable(table, data) {
+    try {
+      data.forEach((row, rowIndex) => {
+        row.forEach((value, colIndex) => {
+          try {
+            const cell = table.getCell(rowIndex, colIndex);
+            if (!cell) {
+              Logger.log(`Warning: No cell found at row ${rowIndex}, column ${colIndex}`);
+              return;
+            }
+
+            // Safely set text content
+            const text = value?.toString() || '';
+            cell.getText().setText(text);
+            
+            // Only apply styling if we have text
+            if (text) {
+              const textStyle = cell.getText().getTextStyle();
+              
+              // Apply styling
+              textStyle
+                .setFontSize(9)
+                .setFontFamily('Proxima Nova');
+
+              // Make headers and first column bold
+              if (rowIndex === 0 || colIndex === 0) {
+                textStyle.setBold(true);
+              }
+            }
+
+            // Style header row
+            if (rowIndex === 0) {
+              cell.getFill().setSolidFill('#f3f3f3');  // Light gray background
+              if (text) {
+                cell.getText().getTextStyle().setForegroundColor('#434343');  // Dark gray text
+              }
+            } else {
+              cell.getFill().setSolidFill('#FFFFFF');  // White background
+            }
+          } catch (cellError) {
+            Logger.log(`Error processing cell at row ${rowIndex}, column ${colIndex}: ${cellError}`);
+          }
+        });
+      });
+    } catch (error) {
+      Logger.log(`Error in styleTable: ${error}`);
+    }
+  }
+
+  try {
+    // Style each table
+    styleTable(mainTable, mainData);
+    styleTable(impactTable, impactData);
+    styleTable(subjectsTable, subjectsData);
+  } catch (error) {
+    Logger.log(`Error in populateSummaryTables_: ${error}`);
+  }
+}
+
+//18
+function createSummarySlide_(presentation, summaryStats, layout) {
+  const slide = presentation.appendSlide(layout);
+  
+  // Add "Summary" title
+  const title = slide.insertTextBox(
+    "Summary",
+    50,
+    20,
+    200,
+    50
+  );
+  
+  title.getText().getTextStyle()
+    .setFontSize(20)
+    .setFontFamily('Proxima Nova')
+    .setForegroundColor('#5293d8')
+    .setBold(true);
+
+  // Create main summary table (left)
+  const mainSummaryTable = slide.insertTable(
+    5, 2,
+    50,  // x position
+    70,  // y position
+    300, // width
+    150  // height
+  );
+
+  // Create impact table (bottom left)
+  const impactTable = slide.insertTable(
+    5, 2,
+    50,  // x position
+    240, // y position
+    300, // width
+    150  // height
+  );
+
+  // Create subjects table (right)
+  const subjectsTable = slide.insertTable(
+    8, 2,
+    400, // x position
+    70,  // y position
+    300, // width
+    240  // height
+  );
+
+  // Ensure all values are defined
+  const safeStats = {
+    totalIncidents: summaryStats?.totalIncidents || 0,
+    affectedMarkets: summaryStats?.affectedMarkets || 0,
+    topNotifications: summaryStats?.topNotifications || 0,
+    solved: summaryStats?.solved || 0,
+    ongoing: summaryStats?.ongoing || 0,
+    impacts: {
+      Low: summaryStats?.impacts?.Low || 0,
+      Medium: summaryStats?.impacts?.Medium || 0,
+      High: summaryStats?.impacts?.High || 0,
+      Critical: summaryStats?.impacts?.Critical || 0
+    },
+    subjects: {
+      Payments: summaryStats?.subjects?.Payments || 0,
+      Traders: summaryStats?.subjects?.Traders || 0,
+      Technical: summaryStats?.subjects?.Technical || 0,
+      "Casino Providers": summaryStats?.subjects?.["Casino Providers"] || 0,
+      "CRM/Promos": summaryStats?.subjects?.["CRM/Promos"] || 0,
+      KYC: summaryStats?.subjects?.KYC || 0,
+      Others: summaryStats?.subjects?.Others || 0
+    }
+  };
+
+  // Prepare data with safe values
+  const mainSummaryData = [
+    ["Impactful incidents", safeStats.totalIncidents],
+    ["Affected markets", safeStats.affectedMarkets],
+    ["Top Notifications", safeStats.topNotifications],
+    ["Solved", safeStats.solved],
+    ["Ongoing", safeStats.ongoing]
+  ];
+
+  const impactData = [
+    ["Impact on CS", "Total"],
+    ["Low", safeStats.impacts.Low],
+    ["Medium", safeStats.impacts.Medium],
+    ["High", safeStats.impacts.High],
+    ["Critical", safeStats.impacts.Critical]
+  ];
+
+  const subjectsData = [
+    ["Incidents per Subject", ""],
+    ["Payments", safeStats.subjects.Payments],
+    ["Traders", safeStats.subjects.Traders],
+    ["Technical", safeStats.subjects.Technical],
+    ["Casino Providers", safeStats.subjects["Casino Providers"]],
+    ["CRM/Promos", safeStats.subjects["CRM/Promos"]],
+    ["KYC", safeStats.subjects.KYC],
+    ["Others", safeStats.subjects.Others]
+  ];
+
+  // Style and populate tables
+  populateSummaryTables_(mainSummaryTable, impactTable, subjectsTable,
+                        mainSummaryData, impactData, subjectsData);
+
+  return slide;
+}
+
+//19
+function createMarketTitle_(slide, market, hasImage = false) {
+  const titleX = hasImage ? 100 : 50;
+  
+  const title = slide.insertTextBox(
+    `${market} Incidents`,
+    titleX,
+    20,
+    600,
+    50
+  );
+  
+  title.getText().getTextStyle()
+    .setFontSize(20)
+    .setFontFamily('Proxima Nova')
+    .setBold(true)
+    .setForegroundColor('#5293d8');
+    
+  return title;
+}
+
+//20
+function createMarketSlide_(slide, market, impactGroups, presentation) {
+  try {
+    let imageInserted = false;
+    
+    if (MARKET_IMAGES[market]) {
+      Logger.log(`Processing image for market: ${market}`);
+      
+      try {
+        const file = DriveApp.getFileById(MARKET_IMAGES[market]);
+        const blob = file.getBlob();
+        const image = slide.insertImage(blob, 50, 20, 40, 40);
+        Logger.log(`Image inserted successfully for ${market}`);
+        imageInserted = true;
+        
+      } catch (imageError) {
+        Logger.log(`Error inserting image for ${market}: ${imageError.toString()}`);
+      }
+    }
+
+    createMarketTitle_(slide, market, imageInserted);
+
+    const tableData = prepareTableData_(impactGroups);
+    
+    if (tableData.length > 1) {
+      try {
+        Logger.log(`Creating table for market: ${market}`);
+
+        const slideWidth = presentation.getPageWidth();
+        const slideHeight = presentation.getPageHeight();
+
+        const tableX = (slideWidth - TABLE_STYLE.TOTAL_WIDTH) / 2;
+
+        const topMargin = 70;
+        const tableY = topMargin + ((slideHeight - topMargin - TABLE_STYLE.TOTAL_HEIGHT) / 2);
+
+        const table = slide.insertTable(
+          tableData.length,
+          3,
+          tableX,
+          tableY,
+          TABLE_STYLE.TOTAL_WIDTH,
+          TABLE_STYLE.TOTAL_HEIGHT
+        );
+
+        populateTableData_(table, tableData);
+        
+        Logger.log("Table created and populated successfully");
+
+      } catch (tableError) {
+        Logger.log(`Error creating table for market ${market}: ${tableError.toString()}`);
+        throw tableError;
+      }
+    } else {
+      Logger.log(`No incidents found for market: ${market}`);
+    }
+    
+  } catch (error) {
+    Logger.log(`Error in createMarketSlide_ for ${market}: ${error.toString()}`);
+    throw error;
+  }
+}
+
+//21
+function adjustTableColumnWidths_(presentationId, tableId, columnWidths) {
+  const requests = columnWidths.map((width, index) => ({
+    updateTableColumnProperties: {
+      objectId: tableId,
+      columnIndices: [index],
+      columnProperties: {
+        columnWidth: {
+          magnitude: width,
+          unit: "PT"
+        }
+      },
+      fields: "columnWidth"
+    }
+  }));
+
+  Slides.Presentations.batchUpdate({
+    requests: requests
+  }, presentationId);
+}
+
+//22
+function prepareTableData_(impactGroups) {
+  const tableData = [['Time', 'Impact', 'Summary']];  // Header row
+  
+  const IMPACT_ORDER = ['Critical', 'High', 'Medium', 'Low'];
+  
+  IMPACT_ORDER.forEach(impact => {
+    const incidents = impactGroups[impact] || [];
+    incidents.forEach(incident => {
+      if (!incident) return;
+      
+      // Calculate duration if we have both start and end times
+      const duration = incident.endLocal ?
+        calculateDuration_(incident.startLocal, incident.endLocal) :
+        'Ongoing';
+
+      // Create time string with duration
+      const timeString = incident.startLocal ?
+        (incident.endLocal ?
+          `${incident.startLocal} - ${incident.endLocal} (${duration})` :
+          `${incident.startLocal} - Ongoing`) :
+        'Time not specified';
+      
+      const timeInfo = {
+        title: incident.title || '',
+        time: timeString,
+        links: incident.links || ''  // Links will be in one line
+      };
+      
+      Logger.log(`Preparing row - Impact: ${impact}, Title: ${timeInfo.title}, Time: ${timeInfo.time}`);
+      
+      tableData.push([
+        timeInfo,
+        impact,
+        incident.description || ''
+      ]);
+    });
+  });
+  
+  return tableData;
+}
+
+//23
+function populateTableData_(table, tableData) {
+  try {
+    tableData.forEach((row, rowIndex) => {
+      row.forEach((cellData, colIndex) => {
+        const cell = table.getCell(rowIndex, colIndex);
+        const textStyle = cell.getText().getTextStyle();
+        
+        if (rowIndex === 0) {
+          cell.getText().setText(cellData);
+          textStyle
+            .setFontSize(TABLE_STYLE.FONT_SIZES.HEADER)
+            .setBold(true)
+            .setFontFamily('Proxima Nova');
+          
+          cell.getFill().setSolidFill('#f3f3f3');
+          cell.getText().getTextStyle().setForegroundColor('#434343');
+        } else {
+          if (colIndex === 0 && typeof cellData === 'object') {
+            try {
+              const formattedText = cellData.title ?
+                `${cellData.title}\n${cellData.time}${cellData.links ? '\n' + cellData.links.split('\n').join(', ') : ''}` :
+                `${cellData.time}${cellData.links ? '\n' + cellData.links.split('\n').join(', ') : ''}`;
+              
+              const textRange = cell.getText();
+              textRange.setText(formattedText);
+              
+              if (cellData.title) {
+                const titleLength = cellData.title.length;
+                
+                textRange.getRange(0, titleLength)
+                  .getTextStyle()
+                  .setFontSize(9)
+                  .setBold(true)
+                  .setFontFamily('Proxima Nova');
+                
+                textRange.getRange(titleLength + 1, formattedText.length)
+                  .getTextStyle()
+                  .setFontSize(9)
+                  .setFontFamily('Proxima Nova');
+              } else {
+                textRange.getTextStyle()
+                  .setFontSize(9)
+                  .setFontFamily('Proxima Nova');
+              }
+            } catch (styleError) {
+              Logger.log(`Error styling time cell: ${styleError.toString()}`);
+              cell.getText().setText(cellData.time);
+            }
+          } else if (colIndex === 1) {
+            cell.getText().setText(cellData);
+            textStyle
+              .setFontSize(TABLE_STYLE.FONT_SIZES.IMPACT)
+              .setFontFamily('Proxima Nova');
+          } else if (colIndex === 2) {
+            const textRange = cell.getText();
+            textRange.setText(cellData);
+            
+            textStyle
+              .setFontSize(9)
+              .setFontFamily('Proxima Nova');
+          }
+
+          if (rowIndex % 2 === 0) {
+            cell.getFill().setSolidFill('#FFFFFF');
+          } else {
+            cell.getFill().setSolidFill('#FFFFFF');
+          }
+        }
+      });
+    });
+  } catch (error) {
+    Logger.log(`Error populating table data: ${error.toString()}`);
+    throw error;
+  }
+}
