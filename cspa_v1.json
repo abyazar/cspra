@@ -92,25 +92,25 @@ const TABLE_STYLE = {
 };
 
 const MARKET_IMAGES = {
-  "BC": "10MFOsaKOb2T0OeEyTWAB-4fBYF3y_cex",
-  "BP": "1wZF7SVhbaHKd8UtH5XV1Ns9lWqRhjT1z",
-  "BR": "1vMSpcq4tCSeqS_2DrNec57XfUt29duF4",
-  "BG": "1T5HEh8XnmLU2krYQzsLP4PGhwjpLOeyK",
-  "CL": "1JKbvqDwcI71jcJPXfkzjuQOg-xHcAhoF",
-  "CO": "1HOoOnabAtr2iskXFwxSdsf_Y8W90OYTC",
-  "EC": "13XH_NtV3R_nKNJ7yrxrKuIL32UqtsF5Y",
-  "MX": "1Kdn1h5l4h7VaT3hG9pBS37PEiNWoFVjZ",
-  "PE": "1A_cb_qqAsqwlwXgGzm4eMLf6PBjgjhRY",
-  "CZ": "1X6FIlc0uwnTW8GmdtnxfIXvoJjbn7pih",
-  "DE": "1YsayfRax893_IA20bDkfJcPu0Ma8k0U9",
-  "DK": "1xXwpqo6g63fuXYtpnH-TfgVquhXNxUVJ",
-  "PT": "1b1fyqr1fbN_v6UYabtn_e9Ib39Yz82DN",
-  "RO": "1X3JCz7leeTdeNQk_mC4oKy2dqs8HAkSC",
-  "ON": "1seljzcAh65bmk3DSsAdVjkLF_5M8rgKc",
-  "NG": "1TpGT8MQJDUfWil6GpsZeMGc8Uyk1PJGX",
-  "BE": "1Rw8Jv1WlCCG5WKWkXoY-gSeZg2ANAI9J",
-  "BK": "13lo2G0mMBTJTcGsG6ETLysnOJIGcpU8E",
-  "UK": "1O-Xeqhvs1q4G1hp1C289aVSMnBEkuk-Z"
+  "BC": "IMAGE_ID",
+  "BP": "IMAGE_ID",
+  "BR": "IMAGE_ID",
+  "BG": "IMAGE_ID",
+  "CL": "IMAGE_ID",
+  "CO": "IMAGE_ID",
+  "EC": "IMAGE_ID",
+  "MX": "IMAGE_ID",
+  "PE": "IMAGE_ID",
+  "CZ": "IMAGE_ID",
+  "DE": "IMAGE_ID",
+  "DK": "IMAGE_ID",
+  "PT": "IMAGE_ID",
+  "RO": "IMAGE_ID",
+  "ON": "IMAGE_ID",
+  "NG": "IMAGE_ID",
+  "BE": "IMAGE_ID",
+  "BK": "IMAGE_ID",
+  "UK": "IMAGE_ID"
 };
 
 //FUNCTION INDEX
